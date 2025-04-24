@@ -1,0 +1,81 @@
+{# templates/_suggestion_list.html #}
+{# Nhận vào biến suggestions (list of dicts) và language #}
+
+{% if suggestions %}
+    <hr style="margin-top: 30px; margin-bottom: 30px;"> {# Thêm đường kẻ phân cách #}
+    {# Form bao quanh toàn bộ danh sách gợi ý và tùy chọn #}
+    <form id="submit-suggestions-form"
+          hx-post="{{ url_for('submit_selected_for_generation') }}"
+          hx-target="#topic-list-dynamic" {# Target là danh sách topic chính #}
+          hx-swap="innerHTML" {# HTMX sẽ thay thế nội dung của các topic item tương ứng trả về từ server #}
+          hx-indicator="#submit-selected-loading"> {# Chỉ báo loading cho nút submit này #}
+
+        {# Gửi kèm ngôn ngữ đã dùng để tạo gợi ý #}
+        <input type="hidden" name="language_for_generation" value="{{ language }}">
+
+        <h4>Chọn các chủ đề bạn muốn tạo nội dung:</h4>
+        <p><small>Check vào các ô bên dưới và điền tùy chọn chung.</small></p>
+        {# Vùng chứa các checkbox gợi ý #}
+        <div class="suggestion-items" style="margin-bottom: 20px; border: 1px solid #eee; padding: 15px; max-height: 250px; overflow-y: auto;">
+            {% for sugg in suggestions %}
+                <div class="suggestion-item">
+                    <input type="checkbox"
+                           name="selected_suggestion" {# Dùng name này để Flask lấy list #}
+                           value="{{ sugg.original }}||{{ sugg.translation_vi }}" {# Lưu cả 2, phân tách bằng || #}
+                           id="suggest-check-{{ loop.index0 }}"> {# ID duy nhất cho checkbox #}
+                    <label for="suggest-check-{{ loop.index0 }}">
+                        <strong>{{ sugg.original }}</strong>
+                        {% if language != 'Vietnamese' and sugg.translation_vi and sugg.original != sugg.translation_vi %}
+                            <span class="translation">(Tiếng Việt: {{ sugg.translation_vi }})</span>
+                        {% endif %}
+                    </label>
+                </div>
+            {% else %}
+                <p>Không có gợi ý nào được tạo ra.</p>
+            {% endfor %}
+        </div>
+
+        {# Các tùy chọn chung cho các topic được chọn #}
+        <div class="generation-form" style="border-top: 1px solid #eee; margin-top: 20px; padding-top: 20px;">
+             <h5>Tùy chọn tạo nội dung (áp dụng cho các mục đã chọn):</h5>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="target_duration_submit">Ước tính thời lượng (phút):</label>
+                    <input type="number" id="target_duration_submit" name="target_duration_submit" min="1" max="180" placeholder="VD: 10 (Để trống = Auto)">
+                </div>
+                <div class="form-group">
+                    <label for="priority_submit">Độ ưu tiên:</label>
+                    <select id="priority_submit" name="priority_submit">
+                        <option value="high">Cao</option>
+                        <option value="medium" selected>Trung bình</option>
+                        <option value="low">Thấp</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="model_submit">Model:</label>
+                    <select id="model_submit" name="model_submit">
+                        <option value="gpt-4o" selected>gpt-4o</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option> 
+                        <option value="gemini-2.0-flash"></option>
+                                              
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-generate">Gửi Yêu Cầu Tạo Content</button>
+            {# Chỉ báo loading riêng cho nút submit này #}
+            <span id="submit-selected-loading" class="htmx-indicator"> Đang gửi...</span>
+        </div>
+    </form>
+{% else %}
+    {# Thông báo nếu không có gợi ý nào được truyền vào template #}
+    <p>Không có gợi ý nào.</p>
+{% endif %}
+
+{# Thêm CSS nếu cần cho suggestion-item (đã có ở index.html) #}
+<style>
+    .suggestion-items { margin-bottom: 20px; }
+    .suggestion-item { display: flex; align-items: baseline; margin-bottom: 8px; }
+    .suggestion-item input[type="checkbox"] { margin-right: 8px; }
+    .suggestion-item label { font-weight: normal; }
+    .suggestion-item .translation { color: #555; font-size: 0.9em; }
+</style>

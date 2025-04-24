@@ -1,0 +1,25 @@
+# Môi trường ảo
+venv/
+env/
+*.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tệp cấu hình nhạy cảm (ví dụ)
+config.ini
+.env
+ytaudio
+
+# Logs
+*.log
+
+# Hệ điều hành/IDE
+.DS_Store
+.vscode/
+ffmpeg-7.0.2-amd64-static
+audio_output
+ytaudio

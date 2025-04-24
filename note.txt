@@ -1,0 +1,8 @@
+https://www.youtube.com/watch?v=zqQWjwbfpH4
+cp -r /home/thevinh/code/ytaudio/audio_output/* /mnt/NewVolume/Audio/
+https://www.youtube.com/watch?v=9pVGeQsCei4
+https://www.youtube.com/watch?v=tqN7LofBHZk
+https://www.youtube.com/watch?v=v5aIWcWZD3I
+https://www.youtube.com/watch?v=SBSVjRkulns
+https://www.youtube.com/@%E7%AB%8B%E5%9C%B0%E6%88%90%E4%BD%9B-v9f
+https://www.youtube.com/@%E4%BD%9B%E6%B3%95%E7%84%A1%E9%82%8A/shorts

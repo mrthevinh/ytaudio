@@ -1,0 +1,155 @@
+{# templates/_topic_item.html #}
+{# Receives 'topic' and 'generation' (which can be None) #}
+<div class="topic-item status-{{ topic.status or 'unknown' }}" id="topic-item-{{ topic._id }}" {% if topic.generation_id %}data-generation-id="{{ topic.generation_id }}"{% endif %} hx-target="this" hx-swap="outerHTML">
+    {# Target 'this' and swap 'outerHTML' ensures the whole item updates #}
+
+    <h4>
+        {{ topic.title or topic.seed_topic }}
+        {% if topic.language != 'Vietnamese' and topic.title_vi %}
+            <br><span class="translation">(Tiếng Việt: {{ topic.title_vi }})</span>
+        {% endif %}
+    </h4>
+
+    <div class="topic-info">
+        <small>
+            Topic ID: {{ topic._id }} | Lang: {{ topic.language }} |
+            Status: <span id="status-topic-{{ topic._id }}" class="status status-{{ topic.status }}">{{ topic.status|replace('_', ' ')|title }}</span>
+             {# Display generation error if topic failed due to it #}
+             {% if topic.status == 'generation_failed' and generation and generation.error_details %}
+                  | <span id="error-topic-{{ topic._id }}" class="status status-failed text-danger" title="{{ generation.error_details.message }}">Gen Error</span>
+             {% endif %}
+             | Upd: {{ topic.updated_at.strftime('%y-%m-%d %H:%M') if topic.updated_at else 'N/A' }}
+        </small>
+    </div>
+
+    {# --- Generation Form OR Status/Result Display --- #}
+
+    {# 1. If topic is ready for generation (suggested, failed, reset) #}
+    {% if topic.status in ['suggested', 'generation_failed', 'generation_reset'] %}
+        <form hx-post="{{ url_for('submit_topic', topic_id=topic._id) }}" class="generation-form"
+              hx-indicator="#gen-loading-{{ topic._id }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="target_duration_{{ topic._id }}">Duration:</label>
+                    <input type="number" id="target_duration_{{ topic._id }}" name="target_duration" min="1" max="180" placeholder="Auto" style="padding: 5px;">
+                </div>
+                <div class="form-group">
+                    <label for="priority_{{ topic._id }}">Priority:</label>
+                    <select id="priority_{{ topic._id }}" name="priority" style="padding: 5px;">
+                        <option value="high">Cao</option>
+                        <option value="medium" selected>TB</option>
+                        <option value="low">Thấp</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="model_{{ topic._id }}">Model:</label>
+                    <select id="model_{{ topic._id }}" name="model" style="padding: 5px;">
+                        <option value="deepseek-v3" selected>Deepseek V3</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="gpt-4o">GPT-4o</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-generate">Generate Content</button>
+            <span id="gen-loading-{{ topic._id }}" class="htmx-indicator"> Processing...</span>
+        </form>
+
+        {# Display previous generation error if topic failed #}
+        {% if topic.status == 'generation_failed' and generation and generation.get('error_details') %}
+             <div class="error-message">
+                 <strong>Lần trước thất bại:</strong>
+                 [{{ generation.error_details.get('stage', 'N/A') }}] {{ generation.error_details.get('message', 'Lỗi không xác định')|truncate(100) }}
+                 <small>({{ generation.error_details.get('timestamp').strftime('%Y-%m-%d %H:%M') if generation.error_details.get('timestamp') else 'N/A' }})</small>
+             </div>
+        {% endif %}
+
+    {# 2. If generation is linked and exists #}
+    {% elif topic.generation_id and generation %}
+        <div class="generation-status">
+            <strong>Gen Status:</strong>
+            <span id="status-gen-{{ generation._id }}" class="status status-{{ generation.status }}">
+                {# Status Mapping #}
+                {% if generation.status == 'pending' %}Đang chờ (Prio: {{ generation.get('priority', 'N/A') }})
+                {% elif generation.status in ['processing_lock', 'generating_outline', 'content_generating', 'audio_generating'] %}Đang xử lý...
+                {% elif generation.status == 'content_ready' %}ND Sẵn sàng
+                {% elif generation.status == 'completed' %}Hoàn thành
+                {% elif generation.status in ['content_failed', 'audio_failed'] %}Thất bại
+                {% elif generation.status == 'reset' %}Đã Reset
+                {% elif generation.status == 'deleted' %}Đã Xóa
+                {% else %}{{ generation.status|replace('_', ' ')|title }} {% endif %}
+            </span>
+
+            {# Action Buttons #}
+            <div style="margin-top: 10px;">
+                {% if generation.status in ['content_ready', 'completed', 'audio_generating', 'audio_failed'] %}
+                    <a href="{{ url_for('view_generation', generation_id=generation._id) }}" class="btn btn-view" target="_blank" title="Xem nội dung (Chưa hoàn thiện)">Xem</a>
+                {% endif %}
+                {# Delete button available unless already deleted #}
+                {% if generation.status != 'deleted' %}
+                <button class="btn btn-delete"
+                        hx-delete="{{ url_for('delete_generation', generation_id=generation._id) }}"
+                        hx-confirm="Xóa generation này? (Topic sẽ được reset)"
+                        hx-indicator="#gen-loading-{{ topic._id }}"
+                        title="Xóa Generation và reset Topic">
+                    Xóa Gen
+                </button>
+                {% endif %}
+                {# Reset button available for failed/stuck/completed states #}
+                 {% if generation.status in ['content_failed', 'audio_failed', 'pending', 'processing_lock', 'generating_outline', 'content_generating', 'audio_generating', 'content_ready', 'completed'] and generation.status != 'deleted' %}
+                 <button class="btn btn-reset"
+                         hx-post="{{ url_for('reset_generation', generation_id=generation._id) }}"
+                         hx-confirm="Reset trạng thái generation này về 'reset'?"
+                         title="Reset trạng thái Generation (không xóa data)">
+                     Reset Gen
+                 </button>
+                 {% endif %}
+                 <span id="gen-loading-{{ topic._id }}" class="htmx-indicator"> ...</span>
+            </div>
+
+            {# Error display if failed #}
+            {% if generation.status in ['content_failed', 'audio_failed'] and generation.get('error_details') %}
+                 <div class="error-message">
+                     <strong>Lỗi:</strong>
+                     <span id="error-gen-{{ generation._id }}">
+                         [{{ generation.error_details.get('stage', 'N/A') }}] {{ generation.error_details.get('message', 'Lỗi không xác định')|truncate(150) }}
+                     </span>
+                     <small>({{ generation.error_details.get('timestamp').strftime('%Y-%m-%d %H:%M') if generation.error_details.get('timestamp') else 'N/A' }})</small>
+                 </div>
+            {% endif %}
+
+            <small style="margin-top: 5px;">
+                Model: {{ generation.get('model', 'N/A') }} |
+                Duration: {{ generation.get('target_duration_minutes', 'Auto') }}m |
+                Prio: {{ generation.get('priority', 'N/A') }} |
+                Gen ID: {{ generation._id }} |
+                Gen Upd: {{ generation.updated_at.strftime('%y-%m-%d %H:%M') if generation.updated_at else 'N/A' }}
+            </small>
+        </div>
+
+    {# 3. If generation_id is linked but generation data is missing (e.g., deleted directly from DB) #}
+    {% elif topic.generation_id and not generation %}
+        <div class="generation-status error-message">
+             <p class="status-unknown">Lỗi: Generation ID {{ topic.generation_id }} được liên kết nhưng không tìm thấy dữ liệu Generation. Có thể đã bị xóa khỏi DB.</p>
+             <form hx-post="{{ url_for('reset_topic_link', topic_id=topic._id) }}" hx-confirm="Gỡ bỏ liên kết Generation lỗi khỏi Topic này?">
+                 <button type="submit" class="btn btn-reset">Gỡ Liên Kết Lỗi</button>
+             </form>
+        </div>
+
+    {# 4. Other topic statuses without generation (shouldn't happen often with current logic) #}
+    {% else %}
+         <div class="generation-status">
+             <p>Trạng thái topic không xác định hoặc không có action: {{ topic.status }}</p>
+         </div>
+    {% endif %}
+
+    {# --- Delete Topic Suggestion Button (only for 'suggested' status) --- #}
+    {% if topic.status == 'suggested' and not topic.generation_id %}
+        <form hx-delete="{{ url_for('delete_topic', topic_id=topic._id) }}"
+              hx-target="#topic-item-{{ topic._id }}" {# Target item itself #}
+              hx-swap="outerHTML" {# Remove on success #}
+              hx-confirm="Xóa gợi ý topic này? (Chỉ xóa nếu chưa tạo content)" class="delete-topic-form">
+            <button type="submit" class="btn btn-delete-topic">Xóa Gợi Ý</button>
+        </form>
+    {% endif %}
+
+</div>

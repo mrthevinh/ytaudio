@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>500 - Internal Server Error</title>
+     <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        h1 { color: #dc3545; }
+        a { color: #007bff; text-decoration: none; }
+        pre { text-align: left; max-width: 800px; margin: 20px auto; background-color: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word;}
+    </style>
+</head>
+<body>
+    <h1>500 - Internal Server Error</h1>
+    <p>Sorry, something went wrong on our end. We've logged the issue.</p>
+    {# Chỉ hiển thị chi tiết lỗi nếu Flask đang ở chế độ DEBUG #}
+    {% if config.DEBUG and error %}
+        <h2>Error Details (Debug Mode Only):</h2>
+        <pre>{{ error }}</pre>
+        {# Lưu ý: Không nên hiển thị lỗi chi tiết trong môi trường production #}
+    {% endif %}
+     <p><a href="{{ url_for('index') }}">Go back to Dashboard</a></p>
+</body>
+</html>

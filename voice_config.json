@@ -1,0 +1,33 @@
+{
+    "Vietnamese": {
+      "provider": "pollinations",
+      "voice_name": "onyx",
+      "language_code": "vi-VN",
+      "speaking_rate": 1.0,
+      "notes": "Chạy đơn luồng"
+    },
+    "English": {
+      "provider": "google",
+      "voice_name": "en-US-Wavenet-F",
+      "language_code": "en-US",
+      "speaking_rate": 1.0
+    },
+    "Traditional Chinese": {
+      "provider": "google",
+      "voice_name": "cmn-TW-Wavenet-A",
+      "language_code": "cmn-TW",
+      "speaking_rate": 1.0
+    },
+    "Mandarin Chinese": {
+      "provider": "google",
+      "voice_name": "cmn-CN-Standard-B",
+      "language_code": "cmn-CN",
+      "speaking_rate": 1.0
+    },
+    "__DEFAULT__": {
+      "provider": "google",
+      "voice_name": "en-US-Standard-J",
+      "language_code": "en-US",
+      "speaking_rate": 1.0
+    }
+  }

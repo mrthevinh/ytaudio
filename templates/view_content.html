@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+{# Xác định ngôn ngữ của trang dựa trên dữ liệu generation #}
+<html lang="{{ generation.language[:2]|lower if generation.language else 'vi' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {# Sử dụng title từ generation, fallback về topic_id #}
+    <title>Xem Nội dung: {{ generation.title or generation.topic_id }}</title>
+    <style>
+        /* --- CSS cơ bản (Có thể copy từ index.html và tùy chỉnh) --- */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.7; padding: 20px; max-width: 900px; margin: 20px auto; background-color: #f8f9fa; color: #343a40; }
+        h1, h2, h3, h4, h5 { color: #212529; margin-top: 1.5em; margin-bottom: 0.8em; }
+        h1 { font-size: 2em; text-align: center; border-bottom: 2px solid #dee2e6; padding-bottom: 0.5em; margin-bottom: 1em;}
+        h2 { font-size: 1.6em; border-bottom: 1px solid #eee; padding-bottom: 0.3em;}
+        h3 { font-size: 1.4em; color: #0056b3;}
+        h4 { font-size: 1.2em; color: #17a2b8;}
+        h5 { font-size: 1.1em; color: #6c757d;}
+        .metadata { background-color: #e9ecef; border: 1px solid #ced4da; padding: 15px 20px; margin-bottom: 30px; border-radius: 5px; font-size: 0.95em; }
+        .metadata p { margin: 8px 0; }
+        .metadata strong { min-width: 180px; display: inline-block; color: #495057; }
+        .chunk { margin-bottom: 30px; padding-left: 20px; border-left: 4px solid #ced4da; padding-top: 5px; padding-bottom: 5px; }
+        .chunk-title { margin-bottom: 10px; }
+        .chunk-title small { color: #6c757d; font-weight: normal; margin-left: 10px;}
+        .chunk-content { white-space: pre-wrap; word-wrap: break-word; background-color: #ffffff; padding: 15px; border: 1px solid #dee2e6; border-radius: 4px; font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 0.95em; margin-top: 10px; }
+        audio { width: 100%; margin-top: 15px; max-height: 45px; display: block; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .back-link { margin-bottom: 25px; display: inline-block; font-size: 1.1em; font-weight: 500; }
+        .error-message { color: #842029; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 8px 12px; border-radius: 4px; margin-top: 5px; font-size: 0.9em;}
+        .no-content { text-align: center; color: #6c757d; margin-top: 30px; font-style: italic; }
+        hr { border: 0; border-top: 1px solid #e9ecef; margin: 30px 0; }
+    </style>
+</head>
+<body>
+    <p class="back-link"><a href="{{ url_for('index') }}">&laquo; Quay lại Dashboard</a></p>
+
+    {# Tiêu đề chính lấy từ generation #}
+    <h1>{{ generation.title or generation.seed_topic or 'Content View' }}</h1>
+
+    {# --- Thông tin Metadata của Generation --- #}
+    <div class="metadata">
+        <h2>Thông tin Generation</h2>
+        <p><strong>Generation ID:</strong> {{ generation._id }}</p>
+        <p><strong>Topic ID (Gốc):</strong> {{ generation.topic_id }}</p>
+        <p><strong>Ngôn ngữ:</strong> {{ generation.language | default('N/A') }}</p>
+        <p><strong>Trạng thái:</strong> <span style="font-weight:bold;">{{ generation.status | default('N/A') | replace('_', ' ')|title }}</span></p>
+        <p><strong>Model đã dùng:</strong> {{ generation.get('model', 'N/A') }}</p>
+        <p><strong>Ưu tiên:</strong> {{ generation.get('priority', 'N/A') }}</p>
+        <p><strong>Thời lượng mục tiêu:</strong> {{ generation.get('target_duration_minutes', 'Tự động') }} phút</p>
+        <p><strong>Số từ mục tiêu:</strong> {{ generation.get('target_words', 'Tự động') }}</p>
+        <p><strong>Số câu nói/chuyện dự kiến:</strong> {{ generation.get('num_quotes', 'N/A') }} / {{ generation.get('num_stories', 'N/A') }}</p>
+        <p><strong>Cập nhật lần cuối:</strong> {{ generation.updated_at.strftime('%Y-%m-%d %H:%M:%S UTC') if generation.updated_at else 'N/A' }}</p>
+        <p><strong>Tạo lúc:</strong> {{ generation.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if generation.created_at else 'N/A' }}</p>
+
+        {# Hiển thị lỗi nếu có #}
+        {% if generation.status in ['content_failed', 'audio_failed'] and generation.error_details %}
+            <div class="error-message">
+                <strong>Lỗi:</strong> [{{ generation.error_details.get('stage', 'N/A') }}] {{ generation.error_details.get('message', 'Lỗi không xác định') }}
+                <small>(Timestamp: {{ generation.error_details.get('timestamp').strftime('%Y-%m-%d %H:%M:%S UTC') if generation.error_details.get('timestamp') else 'N/A' }})</small>
+            </div>
+        {% endif %}
+
+        {# Hiển thị Outline nếu có #}
+        {% if generation.outline %}
+            <h3>Outline đã tạo:</h3>
+            <pre style="max-height: 200px; overflow-y: auto; background-color: #fff; border: 1px solid #ddd;">{{ generation.outline }}</pre>
+        {% endif %}
+
+         {# Hiển thị Metadata phụ nếu có #}
+        {% if generation.seo_title %}
+            <p><strong>SEO Title:</strong> {{ generation.seo_title }}</p>
+        {% endif %}
+        {% if generation.thumbnail_titles %}
+            <p><strong>Thumbnail Titles:</strong> {{ generation.thumbnail_titles | join(' | ') }}</p>
+        {% endif %}
+         {% if generation.image_prompt %}
+            <p><strong>Image Prompt:</strong> <code style="font-size: 0.9em;">{{ generation.image_prompt }}</code></p>
+        {% endif %}
+
+
+        {# Hiển thị Audio Player hoàn chỉnh nếu có #}
+        {% if generation.final_audio_path %}
+            <h3>Audio Hoàn Chỉnh</h3>
+            {% set audio_path_parts = generation.final_audio_path.replace('\\', '/').split('/') %}
+            {% set audio_filename = audio_path_parts[-1] %}
+            {# Giả định cấu trúc thư mục là static/audio_output/<script_name>/<generation_id>_combined.mp3 #}
+            {% set script_foldername = generation.get('script_name') %} {# Lấy script_name từ generation #}
+            {% if script_foldername and audio_filename %}
+                <audio controls preload="metadata">
+                    <source src="{{ url_for('static', filename='audio_output/' + script_foldername + '/' + audio_filename) }}" type="audio/mpeg">
+                    Trình duyệt của bạn không hỗ trợ thẻ audio.
+                </audio>
+                <p><small>File: {{ generation.final_audio_path }}</small></p>
+            {% else %}
+                 <p><small class="error">Đường dẫn file audio hoàn chỉnh không hợp lệ hoặc thiếu script_name: {{ generation.final_audio_path }}</small></p>
+            {% endif %}
+        {% elif generation.status == 'completed' %}
+             <p><i>Đã hoàn thành nhưng chưa có file audio tổng hợp (có thể lỗi ghép file?).</i></p>
+        {% elif generation.status == 'audio_generating' %}
+             <p><i>Đang tạo hoặc ghép audio...</i></p>
+        {% elif generation.status == 'content_ready' %}
+             <p><i>Nội dung sẵn sàng, chờ tạo audio...</i></p>
+        {% endif %}
+    </div>
+
+    <hr>
+
+    <h2>Nội dung Script Chi tiết (Chunks)</h2>
+
+    {% for chunk in chunks %}
+        <div class="chunk">
+            {# Hiển thị tiêu đề chunk #}
+            <div class="chunk-title">
+                {% if chunk.level == 0 %}<h2 style="margin:0 0 5px 0;">{{ chunk.section_title }}</h2>
+                {% elif chunk.level == 1 %}<h3 style="margin:0 0 5px 0;">{{ chunk.section_title }}</h3>
+                {% elif chunk.level == 2 %}<h4 style="margin:0 0 5px 0;">{{ chunk.section_title }}</h4>
+                {% elif chunk.level == 3 %}<h5 style="margin:0 0 5px 0;">{{ chunk.section_title }}</h5>
+                {% else %}<p style="margin:0 0 5px 0;"><strong>{{ chunk.section_title }}</strong></p>
+                {% endif %}
+                <small>(Index: {{ chunk.section_index }} | Level: {{ chunk.level }} | Type: {{ chunk.get('item_type', 'N/A') }})</small>
+            </div>
+
+            {# Hiển thị nội dung text #}
+            <div class="chunk-content">
+                {{ chunk.text_content | default('[Nội dung trống hoặc bị lỗi]', true) }}
+            </div>
+
+            {# Hiển thị audio player cho từng chunk nếu có #}
+             {% if chunk.audio_file_path %}
+                {% set chunk_path_parts = chunk.audio_file_path.replace('\\', '/').split('/') %}
+                {% set chunk_filename = chunk_path_parts[-1] %}
+                {% set chunk_script_folder = chunk_path_parts[-2] %}
+                 {% if chunk_script_folder and chunk_filename %}
+                    <audio controls preload="metadata" style="max-height: 40px; margin-top: 5px;">
+                        <source src="{{ url_for('static', filename='audio_output/' + chunk_script_folder + '/' + chunk_filename) }}" type="audio/mpeg">
+                         Chunk audio path: {{ chunk.audio_file_path }}
+                    </audio>
+                 {% else %}
+                    <p><small class="error">Đường dẫn chunk audio không hợp lệ: {{ chunk.audio_file_path }}</small></p>
+                 {% endif %}
+
+             {% elif chunk.audio_error %}
+                 <p><small class="error">Lỗi tạo audio chunk: {{ chunk.audio_error|truncate(150) }}</small></p>
+             {% elif generation.status in ['audio_generating', 'completed'] %}
+                 <p><small><i>Chờ tạo audio chunk...</i></small></p>
+             {% endif %}
+        </div>
+    {% else %}
+        <p class="no-content">Chưa có nội dung chi tiết (chunks) nào được tạo cho generation này.</p>
+    {% endfor %}
+
+     <p class="back-link" style="text-align: center; margin-top: 30px;"><a href="{{ url_for('index') }}">&laquo; Quay lại Dashboard</a></p>
+
+</body>
+</html>

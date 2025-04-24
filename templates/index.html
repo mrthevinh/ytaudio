@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Generation Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+    <style>
+        /* --- General Styles --- */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f8f9fa; color: #212529; }
+        .container { max-width: 1000px; margin: 20px auto; background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.08); }
+        h1, h2 { color: #343a40; border-bottom: 2px solid #eee; padding-bottom: 10px; text-align: center;}
+        h1 { font-size: 1.8em; margin-bottom: 1.5em; }
+        h2 { font-size: 1.5em; margin-bottom: 1em; }
+        h4 { margin-top: 0; margin-bottom: 0.5em; color: #0056b3; font-weight: 600; font-size: 1.1em; } /* Style cho title topic */
+        hr { border: 0; border-top: 1px solid #e9ecef; margin: 25px 0; }
+        small { color: #6c757d; font-size: 0.875em; }
+        code { background-color: #e9ecef; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; }
+
+        /* --- Forms --- */
+        .form-container { margin-bottom: 30px; padding: 20px; background-color: #fdfdfd; border: 1px solid #eee; border-radius: 5px;}
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.95em; color: #555; }
+        input[type="text"], input[type="number"], select, textarea {
+            width: 100%; padding: 10px 12px; margin-bottom: 15px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; font-size: 1rem; font-family: inherit;
+        }
+        textarea { min-height: 120px; resize: vertical; }
+        .task-type-group label { display: inline-block; margin-right: 20px; font-weight: normal;}
+        .task-type-group input[type="radio"] { margin-right: 5px;}
+
+        /* --- Buttons --- */
+        button, .btn { padding: 10px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.95em; text-decoration: none; display: inline-block; vertical-align: middle; transition: background-color 0.2s ease; margin-right: 8px; margin-bottom: 5px;}
+        button:hover, .btn:hover { opacity: 0.85; }
+        button:disabled { background-color: #adb5bd; cursor: not-allowed; }
+        button[type="submit"].submit-task-btn { background-color: #0d6efd; color: white; } /* Nút submit chính */
+        button[type="submit"].submit-task-btn:hover { background-color: #0b5ed7; }
+        /* (Các style nút khác giữ nguyên: suggest-btn, btn-view, btn-delete, btn-reset, btn-delete-topic...) */
+        .btn-delete, .btn-delete-topic { background-color: #dc3545; color: white;}
+        .btn-delete:hover, .btn-delete-topic:hover { background-color: #bb2d3b; }
+        .btn-reset { background-color: #ffc107; color: #212529; }
+        .btn-reset:hover { background-color: #ffca2c; }
+        .btn-view { background-color: #0dcaf0; color: white; }
+        .btn-view:hover { background-color: #31d2f2; }
+        .inline-form { display: inline-block; margin: 0; padding: 0; vertical-align: middle; margin-left: 5px; }
+        .inline-form:first-child { margin-left: 0; }
+
+        /* --- Topic List & Items --- */
+        .topic-list-container { margin-top: 30px; }
+        #topic-list-dynamic { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); } /* Grid layout */
+        .topic-item { background-color: #fff; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: box-shadow 0.2s ease; position: relative; }
+        .topic-item:hover { box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+        .topic-info { font-size: 0.85em; color: #6c757d; margin-bottom: 10px; border-bottom: 1px dashed #eee; padding-bottom: 8px;}
+        .topic-item h4 .translation { color: #495057; font-size: 0.9em; font-weight: normal;}
+        .generation-status, .generation-form { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #eee; font-size: 0.9em; }
+        .generation-status small { display: block; margin-top: 8px; font-size: 0.9em; color: #495057; line-height: 1.5; word-wrap: break-word; }
+        .generation-status strong { margin-right: 5px;}
+
+        /* --- Status Badges --- */
+        .status { font-weight: bold; padding: 3px 8px; border-radius: 10px; font-size: 0.8em; display: inline-block; margin-left: 5px; color: #fff; text-transform: capitalize; }
+        .status-suggested, .status-generation_reset, .status-generation-reset { background-color: #6c757d; color: white; }
+        .status-generation_requested, .status-pending, .status-generation-pending { background-color: #fd7e14; }
+        .status-processing_lock, .status-generating_outline, .status-content_generating, .status-audio_generating { background-color: #0d6fbf; }
+        .status-content_ready { background-color: #198754; }
+        .status-completed { background-color: #146c43; }
+        .status-failed, .status-content_failed, .status-audio_failed { background-color: #dc3545; }
+        .status-deleted { background-color: #adb5bd; text-decoration: line-through; }
+        .status-unknown { background-color: #adb5bd; color: #333;}
+        .status-orphan_error { background-color: #ffc107; color: #333; }
+
+        /* --- Messages & Loading --- */
+        .flash-messages { list-style: none; padding: 0; margin: 0 0 20px 0; }
+        .flash { padding: 12px 18px; margin-bottom: 15px; border-radius: 4px; border: 1px solid transparent; font-size: 0.95em;}
+        .flash-success { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
+        .flash-error { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
+        .flash-warning { background-color: #fff3cd; color: #664d03; border-color: #ffecb5; }
+        .flash-info { background-color: #cff4fc; color: #055160; border-color: #bee5eb; }
+        .error-message { color: #842029; background-color: #f8d7da; border: 1px solid #f5c6cb; padding: 8px 12px; margin-top: 10px; border-radius: 4px; font-size: 0.9em; }
+        .delete-topic-form { position: absolute; top: 10px; right: 15px; }
+        .htmx-indicator { opacity:0; transition: opacity 200ms ease-in; margin-left: 10px; font-style: italic; color: #007bff; font-weight: bold; vertical-align: middle;}
+        .htmx-request .htmx-indicator { opacity:1 }
+        .htmx-request.htmx-indicator { opacity:1 }
+        #loading-indicator { /* Global indicator */ position: fixed; top: 10px; right: 10px; background: #fff; padding: 5px 10px; border-radius: 5px; box-shadow: 0 0 5px rgba(0,0,0,0.2); z-index: 1000; border: 1px solid #eee;}
+    </style>
+</head>
+<body hx-boost="true">
+
+    <div id="loading-indicator" class="htmx-indicator">⏳ Processing...</div>
+
+    <div class="container">
+        <h1>Content Generation Dashboard</h1>
+
+        {# Flash Messages Container #}
+        <div id="flash-container">
+             {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <ul class="flash-messages">
+                {% for category, message in messages %}
+                  <li class="flash flash-{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+              {% endif %}
+            {% endwith %}
+        </div>
+
+        {# Main Task Submission Form #}
+        <div class="form-container">
+            <h2>Tạo Yêu Cầu Mới</h2>
+            {# Form này sẽ submit đến /handle_initial_submission và kết quả sẽ thay thế #submission-result #}
+            <form id="task-submission-form"
+                  hx-post="{{ url_for('handle_initial_submission') }}"
+                  hx-target="#submission-result"
+                  hx-swap="innerHTML"
+                  hx-indicator="#loading-indicator">
+
+                {# Task Type Selection #}
+                <div class="form-group task-type-group">
+                    <label style="margin-bottom: 10px;">Loại Yêu Cầu:</label>
+                    <label>
+                        <input type="radio" name="task_type" value="from_topic" checked onchange="toggleInputFields()"> Tạo mới từ Topic
+                    </label>
+                    <label>
+                        <input type="radio" name="task_type" value="rewrite_script" onchange="toggleInputFields()"> Viết lại từ Script
+                    </label>
+                </div>
+
+                {# Input for Seed Topic #}
+                <div class="form-group topic-input-area">
+                    <label for="seed_topic">Chủ Đề Gốc (Seed Topic):</label>
+                    <input type="text" id="seed_topic" name="seed_topic" placeholder="Nhập chủ đề để tạo nội dung mới hoặc lấy gợi ý...">
+                </div>
+
+                {# Input for Source Script #}
+                <div class="form-group script-input-area" style="display: none;"> {# Ẩn ban đầu #}
+                    <label for="source_script">Nội dung Script Gốc:</label>
+                    <textarea id="source_script" name="source_script" placeholder="Dán nội dung script cần phân tích và viết lại vào đây..."></textarea>
+                </div>
+
+                {# Common Options #}
+                <div class="form-row">
+                     <div class="form-group">
+                        <label for="language">Ngôn ngữ Output:</label>
+                        <select id="language" name="language">
+                            <option value="Vietnamese" selected>Tiếng Việt</option>
+                            <option value="English">Tiếng Anh</option>
+                            <option value="Chinese">Tiếng Trung</option>
+                            <option value="Japanese">Tiếng Nhật</option>
+                            <option value="Korean">Tiếng Hàn</option>
+                            {# ... other languages ... #}
+                        </select>
+                     </div>
+                     <div class="form-group">
+                        <label for="target_duration">Thời lượng (phút):</label>
+                        <input type="number" id="target_duration" name="target_duration" min="1" max="180" placeholder="Tự động">
+                     </div>
+                     <div class="form-group">
+                        <label for="priority">Độ ưu tiên:</label>
+                        <select id="priority" name="priority">
+                            <option value="high">Cao</option>
+                            <option value="medium" selected>Trung bình</option>
+                            <option value="low">Thấp</option>
+                        </select>
+                     </div>
+                     <div class="form-group">
+                        <label for="model">Model:</label>
+                        <select id="model" name="model">
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="gpt-4o" selected>GPT-4o</option>
+                            <option value="deepseek-v3">Deepseek V3</option>
+                        </select>
+                     </div>
+                </div>
+
+                {# Nút Submit chính #}
+                <button type="submit" class="submit-task-btn">Gửi Yêu Cầu</button>
+                 {# Div để hiển thị lỗi của form này (ví dụ từ HX-Trigger) #}
+                <div id="submit-task-error" class="error-message" style="display: none;"></div>
+
+            </form>
+        </div>
+
+        {# Area to display suggestion list OR rewrite success message #}
+        <div id="submission-result">
+            {# Nội dung từ /handle_initial_submission sẽ được chèn vào đây #}
+        </div>
+
+        {# Main Topic List Container #}
+        <div class="topic-list-container">
+            <h2>Danh Sách Chủ Đề & Trạng Thái</h2>
+            <div id="topic-list-dynamic">
+                {# Initial rendering of topics from Flask #}
+                {% for topic in topics %}
+                    {# Pass generation data if available #}
+                    {% set generation = generations.get(topic.generation_id) if topic.generation_id else None %}
+                    {# Use include with context to pass variables #}
+                    {% include '_topic_item.html' ignore missing %}
+                {% else %}
+                    <p>Chưa có chủ đề nào.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div> {# End container #}
+
+    {# JavaScript #}
+    <script>
+        function toggleInputFields() {
+            const taskType = document.querySelector('input[name="task_type"]:checked').value;
+            const topicInputDiv = document.querySelector('.topic-input-area');
+            const scriptInputDiv = document.querySelector('.script-input-area');
+            const seedTopicField = document.getElementById('seed_topic');
+            const sourceScriptField = document.getElementById('source_script');
+
+            if (taskType === 'from_topic') {
+                topicInputDiv.style.display = 'block';
+                scriptInputDiv.style.display = 'none';
+                seedTopicField.required = true;
+                sourceScriptField.required = false;
+                sourceScriptField.value = ''; // Clear script field
+            } else if (taskType === 'rewrite_script') {
+                topicInputDiv.style.display = 'none';
+                scriptInputDiv.style.display = 'block';
+                seedTopicField.required = false;
+                sourceScriptField.required = true;
+                seedTopicField.value = ''; // Clear topic field
+            }
+        }
+
+        // Run on initial load
+        document.addEventListener('DOMContentLoaded', toggleInputFields);
+
+        // Handle showMessage trigger from HTMX
+        document.body.addEventListener('showMessage', function(evt){
+             const detail = evt.detail.value || evt.detail; // Handle slightly different trigger structures
+             const message = detail.message || 'Thông báo!';
+             const level = detail.level || 'info';
+             const flashContainer = document.getElementById('flash-container');
+             if (!flashContainer) {
+                 console.warn("Flash container not found");
+                 alert(`${level.toUpperCase()}: ${message}`); // Fallback
+                 return;
+             }
+
+             let list = flashContainer.querySelector('.flash-messages');
+             if (!list) {
+                  list = document.createElement('ul');
+                  list.className = 'flash-messages';
+                  flashContainer.appendChild(list);
+             }
+             const flashItem = document.createElement('li');
+             flashItem.className = `flash flash-${level}`;
+             flashItem.textContent = message;
+             list.insertBefore(flashItem, list.firstChild); // Add new message at the top
+
+             // Auto-remove after 7 seconds
+             setTimeout(() => {
+                 flashItem.style.transition = 'opacity 0.5s ease';
+                 flashItem.style.opacity = '0';
+                 setTimeout(() => flashItem.remove(), 500);
+             }, 7000);
+        });
+
+         // Handle custom trigger to clear suggestion form area
+         document.body.addEventListener('clearSuggestionDisplay', function(evt){
+             const suggestionsDiv = document.getElementById('suggestions-display');
+             if (suggestionsDiv) {
+                  suggestionsDiv.innerHTML = "<p><i>Đã gửi yêu cầu thành công.</i></p>"; // Show feedback
+                  // Optionally clear it completely after a delay
+                  // setTimeout(() => { suggestionsDiv.innerHTML = ''; }, 3000);
+             }
+         });
+
+        // Handle HTMX errors shown in specific divs
+         document.body.addEventListener('htmx:afterOnLoad', function (evt) {
+            if (evt.detail.failed && evt.detail.xhr) {
+                 const targetErrorDivId = evt.detail.target.id + '-error'; // Convention: targetId-error
+                 const errorDiv = document.getElementById(targetErrorDivId);
+                 if (errorDiv) {
+                     let errorMsg = `Lỗi ${evt.detail.xhr.status}.`;
+                     // Try to get error text if server sent simple text error
+                     if (evt.detail.xhr.responseText && !evt.detail.xhr.responseText.startsWith('<')) {
+                          errorMsg = `Lỗi ${evt.detail.xhr.status}: ${evt.detail.xhr.responseText.substring(0, 100)}`;
+                     }
+                     errorDiv.textContent = errorMsg;
+                     errorDiv.style.display = 'block'; // Make sure it's visible
+                 } else if (evt.detail.target.id === 'task-submission-form') {
+                     // Handle error for the main submission form if no specific error div found
+                     const submitErrorDiv = document.getElementById('submit-task-error');
+                     if (submitErrorDiv) {
+                         submitErrorDiv.textContent = `Lỗi ${evt.detail.xhr.status}. Chi tiết đã được log.`;
+                         submitErrorDiv.style.display = 'block';
+                     }
+                 }
+            } else if (evt.detail.successful && evt.detail.xhr) {
+                 // Clear specific error div on success if needed
+                 const targetErrorDivId = evt.detail.target.id + '-error';
+                 const errorDiv = document.getElementById(targetErrorDivId);
+                 if (errorDiv) errorDiv.style.display = 'none';
+                 if (evt.detail.target.id === 'task-submission-form') {
+                     const submitErrorDiv = document.getElementById('submit-task-error');
+                     if (submitErrorDiv) submitErrorDiv.style.display = 'none';
+                 }
+            }
+         });
+
+    </script>
+
+</body>
+</html>
