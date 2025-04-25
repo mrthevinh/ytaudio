@@ -13,6 +13,7 @@ __pycache__/
 config.ini
 .env
 ytaudio
+.token
 
 # Logs
 *.log
